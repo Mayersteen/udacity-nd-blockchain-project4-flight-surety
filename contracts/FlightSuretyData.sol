@@ -9,8 +9,12 @@ contract FlightSuretyData {
     /*                                       DATA VARIABLES                                     */
     /********************************************************************************************/
 
-    address private contractOwner;                                      // Account used to deploy contract
-    bool private operational = true;                                    // Blocks all state changes throughout the contract if false
+    // Account used to deploy contract
+    address private contractOwner;
+
+    // Blocks all state changes throughout the contract if false
+    bool private operational = true;
+
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -21,10 +25,8 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor
-                                (
-                                ) 
-                                public 
+    constructor()
+        public
     {
         contractOwner = msg.sender;
     }
@@ -66,9 +68,9 @@ contract FlightSuretyData {
     * @return A bool that is the current operating status
     */      
     function isOperational() 
-                            public 
-                            view 
-                            returns(bool) 
+        public
+        view
+        returns(bool)
     {
         return operational;
     }
@@ -79,12 +81,11 @@ contract FlightSuretyData {
     *
     * When operational mode is disabled, all write transactions except for this one will fail
     */    
-    function setOperatingStatus
-                            (
-                                bool mode
-                            ) 
-                            external
-                            requireContractOwner 
+    function setOperatingStatus(
+        bool mode
+    )
+        external
+        requireContractOwner
     {
         operational = mode;
     }
@@ -98,12 +99,11 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline
-                            (   
-                            )
-                            external
-                            pure
+    function registerAirline()
+        external
+        pure
     {
+
     }
 
 
@@ -111,11 +111,9 @@ contract FlightSuretyData {
     * @dev Buy insurance for a flight
     *
     */   
-    function buy
-                            (                             
-                            )
-                            external
-                            payable
+    function buy()
+        external
+        payable
     {
 
     }
@@ -123,11 +121,9 @@ contract FlightSuretyData {
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees
-                                (
-                                )
-                                external
-                                pure
+    function creditInsurees()
+        external
+        pure
     {
     }
     
@@ -136,11 +132,9 @@ contract FlightSuretyData {
      *  @dev Transfers eligible payout funds to insuree
      *
     */
-    function pay
-                            (
-                            )
-                            external
-                            pure
+    function pay()
+        external
+        pure
     {
     }
 
@@ -149,23 +143,21 @@ contract FlightSuretyData {
     *      resulting in insurance payouts, the contract should be self-sustaining
     *
     */   
-    function fund
-                            (   
-                            )
-                            public
-                            payable
+    function fund()
+        public
+        payable
     {
+
     }
 
-    function getFlightKey
-                        (
-                            address airline,
-                            string memory flight,
-                            uint256 timestamp
-                        )
-                        pure
-                        internal
-                        returns(bytes32) 
+    function getFlightKey(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    )
+        pure
+        internal
+        returns(bytes32)
     {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
@@ -175,12 +167,11 @@ contract FlightSuretyData {
     *
     */
     function() 
-                            external 
-                            payable 
+        external
+        payable
     {
         fund();
     }
 
 
 }
-
