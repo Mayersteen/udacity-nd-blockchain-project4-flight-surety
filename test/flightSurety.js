@@ -13,6 +13,14 @@ contract('Flight Surety Tests', async (accounts) => {
   /****************************************************************************************/
   /* Operations and Settings                                                              */
   /****************************************************************************************/
+  it(`(general contract) constructor registers first airline`, async function() {
+      let airline = await config.flightSuretyData.getAirline.call(config.firstAirline);
+      assert.equal(airline[0], "Lufthansa", "Airline name is not correct");
+      assert.equal(airline[2], true, "Airline isRegistered must be true");
+      assert.equal(airline[3], false, "Airline isFunded must be false");
+  });
+
+
 
   it(`(multiparty) has correct initial isOperational() value`, async function () {
 
@@ -89,6 +97,5 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(result, false, "Airline should not be able to register another airline if it hasn't provided funding");
 
   });
- 
 
 });

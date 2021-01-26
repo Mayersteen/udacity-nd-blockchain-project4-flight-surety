@@ -1,6 +1,7 @@
 pragma solidity ^0.4.25;
 
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./Migrations.sol";
 
 contract FlightSuretyData {
     using SafeMath for uint256;
@@ -15,20 +16,62 @@ contract FlightSuretyData {
     // Blocks all state changes throughout the contract if false
     bool private operational = true;
 
+    // Number of overall airlines.
+    uint256 private allAirlinesCount = 0;
+
+    // Number of airlines that are part of the contract.
+    uint256 private registeredAirlinesCount = 0;
+
+    // Number of airlines that have provided the funding of 10 ETH.
+    uint256 private fundedAirlinesCount = 0;
+
+    // Struct that represents an airline.
+    struct Airline{
+        string name;
+        address wallet;
+        bool isRegistered;
+        bool isFunded;
+    }
+
+    // Mapping to store Airlines
+    mapping(address => Airline) private airlines;
+
+    // Mapping for authorized callers
+    mapping(address => bool) private authorizedCallers;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
-
+    event AirlineAvailable(address airlineAddress);
+    event AirlineRegistered(address airlineAddress, bool isRegistered);
+    event AirlineFunded(address airlineAddress, bool isFunded);
+    event CallerAuthorized(address caller);
 
     /**
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor()
+    constructor(
+        address initialAirlineAddress
+    )
         public
     {
         contractOwner = msg.sender;
+
+        airlines[initialAirlineAddress] = Airline({
+            name:"Lufthansa",
+            wallet:initialAirlineAddress,
+            isRegistered:true,
+            isFunded:false
+        });
+
+        // emit Events
+        emit AirlineAvailable(initialAirlineAddress);
+        emit AirlineRegistered(initialAirlineAddress, airlines[initialAirlineAddress].isRegistered);
+
+        // Increase the registered airlines counter by 1.
+        registeredAirlinesCount.add(1);
+        allAirlinesCount.add(1);
     }
 
     /********************************************************************************************/
@@ -58,6 +101,32 @@ contract FlightSuretyData {
         _;
     }
 
+    /**
+    * @dev Modifier that requires the "Airline" account is registered.
+    */
+    modifier requireAirlinesIsRegistered(address _address)
+    {
+        require(airlines[_address].isRegistered == true, "Airline is not registered.");
+        _;
+    }
+
+    /**
+    * @dev Modifier that requires the "Airline" account is funded.
+    */
+    modifier requireAirlinesIsFunded(address _address)
+    {
+        require(airlines[_address].isFunded == true, "Airline is not funded.");
+        _;
+    }
+
+    /**
+    * @dev Modifier that requires the "Caller" to be authorized.
+    */
+    modifier requireAuthorizedCaller(address _address) {
+        require(authorizedCallers[_address] == true, "Caller is not authorized to call this data contract");
+        _;
+    }
+
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
@@ -75,7 +144,6 @@ contract FlightSuretyData {
         return operational;
     }
 
-
     /**
     * @dev Sets contract operations on/off
     *
@@ -90,9 +158,41 @@ contract FlightSuretyData {
         operational = mode;
     }
 
+    function authorizeCaller(address applicationContractAddress)
+    public
+    requireContractOwner
+    requireIsOperational
+    {
+        require(applicationContractAddress != address(0));
+        authorizedCallers[applicationContractAddress] = true;
+
+        emit CallerAuthorized(applicationContractAddress);
+    }
+
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
+
+    /**
+     * @dev Return the requested airline.
+     */
+    function getAirline(
+        address _address
+    )
+        public
+        view
+        returns (
+            string _name,
+            address _wallet,
+            bool _isRegistered,
+            bool _isFunded
+        )
+    {
+        _name = airlines[_address].name;
+        _wallet = airlines[_address].wallet;
+        _isRegistered = airlines[_address].isRegistered;
+        _isFunded = airlines[_address].isFunded;
+    }
 
    /**
     * @dev Add an airline to the registration queue
