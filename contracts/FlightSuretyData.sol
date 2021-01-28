@@ -10,6 +10,15 @@ contract FlightSuretyData {
     /*                                       DATA VARIABLES                                     */
     /********************************************************************************************/
 
+    // Threshold when Multi-Party-Consensus gets activated
+    uint256 private constant MPC_THRESHOLD = 5;
+
+    // Maximum amount that an insurance can cost
+    uint256 private constant MAX_INSURANCE_PRICE = 1 ether;
+
+    // Minimum amount that is required to fund an airline in the contract
+    uint256 private constant MIN_FUNDING_AMOUNT = 10 ether;
+
     // Account used to deploy contract
     address private contractOwner;
 
@@ -25,6 +34,12 @@ contract FlightSuretyData {
     // Number of airlines that have provided the funding of 10 ETH.
     uint256 private fundedAirlinesCount = 0;
 
+    // Registration Queue
+    uint256 private registrationQueue;
+
+    // Contract funding to stay self-sustaining in case of many delaiyed flights
+    mapping(address => uint256) private funding;
+
     // Struct that represents an airline.
     struct Airline{
         string name;
@@ -33,19 +48,36 @@ contract FlightSuretyData {
         bool isFunded;
     }
 
+    // Struct that represents votes
+    struct Vote{
+        address memberRequest;
+        uint256 votes;
+        bool success;
+        mapping(address => bool) hasVoted;
+        uint256 memberCount;
+        bool mpcRequired;
+    }
+
+    // Mapping to store votingResults for addresses
+    mapping(address => Vote) private votes;
+
     // Mapping to store Airlines
     mapping(address => Airline) private airlines;
 
     // Mapping for authorized callers
     mapping(address => bool) private authorizedCallers;
 
+    // Multi-Party Consensus
+    address[] multiCalls = new address[](0);
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
     event AirlineAvailable(address airlineAddress);
     event AirlineRegistered(address airlineAddress, bool isRegistered);
-    event AirlineFunded(address airlineAddress, bool isFunded);
+    event AirlineFunded(address airlineAddress, bool isFunded, uint256 funding);
     event CallerAuthorized(address caller);
+    event AirlineInRegistrationQueue(address airlineAddress);
 
     /**
     * @dev Constructor
@@ -70,8 +102,8 @@ contract FlightSuretyData {
         emit AirlineRegistered(initialAirlineAddress, airlines[initialAirlineAddress].isRegistered);
 
         // Increase the registered airlines counter by 1.
-        registeredAirlinesCount.add(1);
-        allAirlinesCount.add(1);
+        registeredAirlinesCount = registeredAirlinesCount.add(1);
+        allAirlinesCount = allAirlinesCount.add(1);
     }
 
     /********************************************************************************************/
@@ -104,7 +136,7 @@ contract FlightSuretyData {
     /**
     * @dev Modifier that requires the "Airline" account is registered.
     */
-    modifier requireAirlinesIsRegistered(address _address)
+    modifier requireAirlineIsRegistered(address _address)
     {
         require(airlines[_address].isRegistered == true, "Airline is not registered.");
         _;
@@ -113,7 +145,7 @@ contract FlightSuretyData {
     /**
     * @dev Modifier that requires the "Airline" account is funded.
     */
-    modifier requireAirlinesIsFunded(address _address)
+    modifier requireAirlineIsFunded(address _address)
     {
         require(airlines[_address].isFunded == true, "Airline is not funded.");
         _;
@@ -155,27 +187,29 @@ contract FlightSuretyData {
         external
         requireContractOwner
     {
+        require(mode != operational, "New mode must be different from existing mode");
         operational = mode;
     }
 
-    function authorizeCaller(address applicationContractAddress)
-    public
-    requireContractOwner
-    requireIsOperational
+    /**
+    * @dev Sets contract addresses that are allowed to call into this smart contract.
+    */
+    function authorizeCaller(
+        address applicationContractAddress
+    )
+        public
+        requireContractOwner
+        requireIsOperational
     {
-        require(applicationContractAddress != address(0));
+        require(applicationContractAddress != address(0), "applicationContractAddress must not be [0x0]");
         authorizedCallers[applicationContractAddress] = true;
 
         emit CallerAuthorized(applicationContractAddress);
     }
 
-    /********************************************************************************************/
-    /*                                     SMART CONTRACT FUNCTIONS                             */
-    /********************************************************************************************/
-
     /**
-     * @dev Return the requested airline.
-     */
+         * @dev Return the requested airline.
+         */
     function getAirline(
         address _address
     )
@@ -194,18 +228,161 @@ contract FlightSuretyData {
         _isFunded = airlines[_address].isFunded;
     }
 
+    /**
+     * @dev Returns true if the Airline is registered, otherwise false.
+     */
+    function isAirlineRegistered(
+        address _address
+    )
+        external
+        view
+        returns(bool)
+    {
+        return airlines[_address].isRegistered;
+    }
+
+    /**
+     * @dev Returns true if the Airline is funded, otherwise false.
+     */
+    function isAirlineFunded(
+        address _address
+    )
+        external
+        view
+        returns(bool)
+    {
+        return airlines[_address].isFunded;
+    }
+
+    /**
+     * @dev Returns true if the calling address is authorized.
+     */
+    function isCallerAuthorized(
+        address _address
+    )
+        public
+        view
+        returns(bool)
+    {
+        return authorizedCallers[_address];
+    }
+
+    /**
+     * @dev Returns the voting result for an address
+     */
+    function getVotingResult( //TODO:Refactoring as voting mechanism was changed
+        address _address
+    )
+        external
+        view
+        requireAuthorizedCaller(msg.sender)
+        requireIsOperational
+        returns(bool, uint256)
+    {
+        return (votes[_address].success, votes[_address].votes);
+    }
+
+    /********************************************************************************************/
+    /*                                     SMART CONTRACT FUNCTIONS                             */
+    /********************************************************************************************/
+
    /**
     * @dev Add an airline to the registration queue
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline()
+    function registerAirline(
+        string _name,
+        address _address,
+        address _invitedBy
+    )
         external
-        pure
+        requireAuthorizedCaller(msg.sender)
+        requireAirlineIsRegistered(_invitedBy)
+        requireAirlineIsFunded(_invitedBy)
     {
+        // Ensure that the airline was not yet registered.
+        require(airlines[_address].wallet == address(0), "Airline must not be registered");
 
+        airlines[_address] = Airline({
+            name:_name,
+            wallet:_address,
+            isRegistered:false,
+            isFunded:false
+        });
+
+        // Increase the registered airlines counter by 1.
+        allAirlinesCount = allAirlinesCount.add(1);
+        emit AirlineAvailable(_address);
+
+        // If less than 5 airlines are registered, register the airline without voting.
+        if (fundedAirlinesCount < MPC_THRESHOLD) {
+            airlines[_address].isRegistered = true;
+
+            // Add artificial voting result
+            votes[_address] = Vote({
+                memberRequest:_address,
+                votes:1,
+                success:true,
+                mpcRequired:false,
+                memberCount:fundedAirlinesCount
+            });
+
+            emit AirlineRegistered(_address, true);
+        }
+        else {
+            // Add Airline to the registration Queue.
+            registrationQueue = registrationQueue.add(1);
+
+            // Vote
+            votes[_address] = Vote({
+                memberRequest:_address,
+                votes:1,
+                success:false,
+                mpcRequired:true,
+                memberCount:fundedAirlinesCount
+            });
+
+            emit AirlineInRegistrationQueue(_address);
+        }
     }
 
+    /**
+     * @dev funds an airline
+     */
+    function fundAirline(
+        address _address
+    )
+        external
+        payable
+        requireIsOperational
+        requireAirlineIsRegistered(_address)
+    {
+        require(msg.value >= MIN_FUNDING_AMOUNT, "Not enough funding");
+
+        // Adjust funding and allow additional funding
+        uint256 _funding = funding[_address];
+        _funding = _funding.add(msg.value);
+        funding[_address] = _funding;
+
+        airlines[_address].isFunded = true;
+
+        fundedAirlinesCount = fundedAirlinesCount.add(1);
+        multiCalls.push(_address);
+
+        emit AirlineFunded(_address, airlines[_address].isFunded, msg.value);
+    }
+
+   /**
+    * @dev Returns the length of the registration queue.
+    */
+    function getRegistrationQueueLength()
+        external
+        view
+        returns(uint256)
+    {
+        return registrationQueue;
+    }
 
    /**
     * @dev Buy insurance for a flight

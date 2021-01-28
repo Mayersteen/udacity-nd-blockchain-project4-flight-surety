@@ -66,6 +66,23 @@ contract FlightSuretyApp {
         _;
     }
 
+    /**
+    * @dev Modifier that requires the "Airline" to be funded.
+    */
+    modifier requireAirlineIsFunded(address _address) {
+        require(flightSuretyData.isAirlineFunded(_address), "Airline must be funded.");
+        _;
+    }
+
+    /**
+    * @dev Modifier that requires the "Airline" to be funded.
+    */
+    modifier requireAllowedToRegisterAirline() {
+        require(flightSuretyData.isAirlineRegistered(msg.sender), "Airline must be registered.");
+        require(flightSuretyData.isAirlineFunded(msg.sender), "Airline must be funded.");
+    _;
+    }
+
     /********************************************************************************************/
     /*                                       CONSTRUCTOR                                        */
     /********************************************************************************************/
@@ -89,10 +106,10 @@ contract FlightSuretyApp {
 
     function isOperational() 
         public
-        pure
+        view
         returns (bool)
     {
-        return true;  // Modify to call data contract's status
+        return flightSuretyData.isOperational();  // Modify to call data contract's status
     }
 
     /********************************************************************************************/
@@ -104,15 +121,19 @@ contract FlightSuretyApp {
     * @dev Add an airline to the registration queue
     *
     */   
-    function registerAirline()
+    function registerAirline(
+        string _name,
+        address _address
+    )
         external
-        pure
-        returns (
-            bool success,
-            uint256 votes
-        )
+        requireAllowedToRegisterAirline
     {
-        return (success, 0);
+        // The airline to be registered must not be already registered
+        require(!flightSuretyData.isAirlineRegistered(_address), "Airline is already registered");
+
+        flightSuretyData.registerAirline(_name, _address, msg.sender);
+        //TODO: Vote for added airline
+
     }
 
 

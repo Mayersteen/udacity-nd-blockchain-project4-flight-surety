@@ -7,14 +7,14 @@ module.exports = {
       host: "127.0.0.1",
       port: 8545,
       network_id: "*",
-      gas: 9999999
+      gas: 999999999
     },
     development_hd_wallet: {
       provider: function() {
         return new HDWalletProvider(mnemonic, "http://127.0.0.1:8545/", 0, 50);
       },
       network_id: '*',
-      gas: 9999999
+      gas: 999999999
     }
   },
   compilers: {
