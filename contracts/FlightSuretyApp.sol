@@ -132,8 +132,6 @@ contract FlightSuretyApp {
         require(!flightSuretyData.isAirlineRegistered(_address), "Airline is already registered");
 
         flightSuretyData.registerAirline(_name, _address, msg.sender);
-        //TODO: Vote for added airline
-
     }
 
 
