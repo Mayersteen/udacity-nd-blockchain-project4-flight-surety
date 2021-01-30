@@ -53,7 +53,7 @@ contract('Flight Surety Tests:Commons', async (accounts) => {
 
     });
 
-    it(`(multiparty consensus) registerAirline can be called only from AppContract`, async function() {
+    it(`(contract access) registerAirline can be called only from AppContract`, async function() {
 
         let unauthorizedCaller = false;
         try

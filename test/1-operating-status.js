@@ -19,7 +19,7 @@ contract('Flight Surety Tests:Operating Status', async (accounts) => {
     /* Operations and Settings                                                              */
     /****************************************************************************************/
 
-    it(`(multiparty) has correct initial isOperational() value`, async function () {
+    it(`(operating status) has correct initial isOperational() value`, async function () {
 
         // Get operating status
         let status = await config.flightSuretyData.isOperational.call();
@@ -27,7 +27,7 @@ contract('Flight Surety Tests:Operating Status', async (accounts) => {
 
     });
 
-    it(`(multiparty) can block access to setOperatingStatus() for non-Contract Owner account`, async function () {
+    it(`(operating status) can block access to setOperatingStatus() for non-Contract Owner account`, async function () {
 
         // Ensure that access is denied for non-Contract Owner account
         let accessDenied = false;
@@ -42,7 +42,7 @@ contract('Flight Surety Tests:Operating Status', async (accounts) => {
 
     });
 
-    it(`(multiparty) can allow access to setOperatingStatus() for Contract Owner account`, async function () {
+    it(`(operating status) can allow access to setOperatingStatus() for Contract Owner account`, async function () {
 
         // Ensure that access is allowed for Contract Owner account
         let accessDenied = false;
@@ -62,7 +62,7 @@ contract('Flight Surety Tests:Operating Status', async (accounts) => {
 
     });
 
-    it(`(multiparty) can block access to functions using requireIsOperational when operating status is false`, async function () {
+    it(`(operating status) can block access to functions using requireIsOperational when operating status is false`, async function () {
 
         let currentStatus = await config.flightSuretyData.isOperational.call();
 

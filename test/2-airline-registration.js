@@ -19,7 +19,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
     /* Operations and Settings                                                              */
     /****************************************************************************************/
 
-    it(`(multiparty consensus) registerAirline cannot be called by an unregistered airline`, async function() {
+    it(`(airline registration) registerAirline cannot be called by an unregistered airline`, async function() {
 
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(
@@ -55,7 +55,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
         assert.equal(qLen, 0, "registrationQueue must be [0].");
     });
 
-    it(`(multiparty consensus) registerAirline can be called by a funded airline`, async function() {
+    it(`(airline registration) registerAirline can be called by a funded airline`, async function() {
 
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(
@@ -104,7 +104,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
         assert.equal(qLenPost, 0, "registrationQueue length must be [0] as multi-party consensus is not active in this test.");
     });
 
-    it(`(multiparty consensus) registerAirline can be called by a funded airline`, async function() {
+    it(`(airline registration) registerAirline can be called by a funded airline`, async function() {
 
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(

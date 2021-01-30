@@ -56,6 +56,7 @@ contract FlightSuretyData {
         mapping(address => bool) hasVoted;
         uint256 memberCount;
         bool mpcRequired;
+        uint256 threshold;
     }
 
     // Mapping to store votingResults for addresses
@@ -73,11 +74,24 @@ contract FlightSuretyData {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
+    // Access Control
+    event CallerAuthorized(address caller);
+
+    // Airline Events
     event AirlineAvailable(address airlineAddress);
     event AirlineRegistered(address airlineAddress, bool isRegistered);
     event AirlineFunded(address airlineAddress, bool isFunded, uint256 funding);
-    event CallerAuthorized(address caller);
     event AirlineInRegistrationQueue(address airlineAddress);
+    event AirlineRemovedFromRegistrationQueue(address airlineAddress);
+
+
+// Voting Events
+    event VoteCounted(address votedBy, address votedFor, bool voting);
+    event VotingSuccessful(address airlineAddress, uint256 threshold, uint256 numVotes);
+
+    /********************************************************************************************/
+    /*                                         CONSTRUCTOR                                      */
+    /********************************************************************************************/
 
     /**
     * @dev Constructor
@@ -104,6 +118,7 @@ contract FlightSuretyData {
         // Increase the registered airlines counter by 1.
         registeredAirlinesCount = registeredAirlinesCount.add(1);
         allAirlinesCount = allAirlinesCount.add(1);
+
     }
 
     /********************************************************************************************/
@@ -156,6 +171,36 @@ contract FlightSuretyData {
     */
     modifier requireAuthorizedCaller(address _address) {
         require(authorizedCallers[_address] == true, "Caller is not authorized to call this data contract");
+        _;
+    }
+
+    /**
+    * @dev Modifier that ensures that only "one vote" per airline is possible
+    */
+    modifier requireFirstVote(address _voteBy, address _voteFor) {
+        require(votes[_voteFor].hasVoted[_voteBy] == false,
+            "Only one vote per Airline is possible per memberRequest"
+        );
+        _;
+    }
+
+    /**
+    * @dev Modifier that requires an active memberRequest.
+    */
+    modifier requireActiveMemberRequest(address _address) {
+        require(votes[_address].memberRequest != address(0),
+            "A memberRequest must be available before a vote can be triggered"
+        );
+        _;
+    }
+
+    /**
+    * @dev Modifier that requires an active memberRequest.
+    */
+    modifier requireMPCThresholdReached(address _address) {
+        require(votes[_address].mpcRequired == true,
+            "Voting for a memberRequest can only be triggered if MPC is required."
+        );
         _;
     }
 
@@ -268,23 +313,114 @@ contract FlightSuretyData {
     }
 
     /**
-     * @dev Returns the voting result for an address
+     * @dev Returns the votes for an address
      */
-    function getVotingResult( //TODO:Refactoring as voting mechanism was changed
+    function getVotingCount(
         address _address
     )
         external
         view
-        requireAuthorizedCaller(msg.sender)
         requireIsOperational
-        returns(bool, uint256)
+        returns(uint256)
     {
-        return (votes[_address].success, votes[_address].votes);
+        return (votes[_address].votes);
+    }
+
+    /**
+     * @dev Returns the votes for an address
+     */
+    function getVotingResult(
+        address _address
+    )
+    external
+    view
+    requireIsOperational
+    returns(bool)
+    {
+        return (votes[_address].success);
+    }
+
+    /**
+     * @dev Returns the votes for an address
+     */
+    function getVote(
+        address _address
+    )
+        external
+        view
+        returns(uint256, uint256, uint256, bool)
+    {
+        return (
+            votes[_address].memberCount,
+            votes[_address].votes,
+            votes[_address].threshold,
+            votes[_address].success
+        );
+    }
+
+    /**
+     * @dev Returns the number of airlines - registered and unregistered
+     */
+    function getOverallAirlineCount()
+        external
+        view
+        returns(uint256)
+    {
+        return allAirlinesCount;
+    }
+
+    function getRegisteredAirlinesCount()
+        external
+        view
+        returns(uint256)
+    {
+        return registeredAirlinesCount;
     }
 
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
+
+    function voteForAirlineRegistration(
+        address _address,
+        bool _vote
+    )
+        external
+        requireAirlineIsRegistered(msg.sender)
+        requireAirlineIsFunded(msg.sender)
+        requireFirstVote(msg.sender, _address)
+        requireActiveMemberRequest(_address)
+        requireMPCThresholdReached(_address)
+    {
+        // Voting can only happen when the vote is still open (not successful)
+        require(votes[_address].success == false,
+            "Voting must not be successful when voteForAirlineRegistration is called"
+        );
+
+        // Only increase the votes counter if the calling airline gives a positive vote
+        if(_vote == true) {
+            votes[_address].votes = votes[_address].votes.add(1);
+        }
+
+        // To avoid double voting set hasVoted to true.
+        votes[_address].hasVoted[msg.sender] = true;
+
+        emit VoteCounted(msg.sender, _address, _vote);
+
+        if(votes[_address].votes >= votes[_address].threshold) {
+            // Vote was successful
+            votes[_address].success = true;
+            emit VotingSuccessful(_address, votes[_address].threshold, votes[_address].votes);
+
+            airlines[_address].isRegistered = true;
+            registeredAirlinesCount = registeredAirlinesCount.add(1);
+            emit AirlineRegistered(_address, true);
+
+            registrationQueue = registrationQueue.sub(1);
+            emit AirlineRemovedFromRegistrationQueue(_address);
+        }
+
+    }
 
    /**
     * @dev Add an airline to the registration queue
@@ -304,20 +440,22 @@ contract FlightSuretyData {
         // Ensure that the airline was not yet registered.
         require(airlines[_address].wallet == address(0), "Airline must not be registered");
 
-        airlines[_address] = Airline({
-            name:_name,
-            wallet:_address,
-            isRegistered:false,
-            isFunded:false
-        });
-
         // Increase the registered airlines counter by 1.
         allAirlinesCount = allAirlinesCount.add(1);
         emit AirlineAvailable(_address);
 
         // If less than 5 airlines are registered, register the airline without voting.
-        if (fundedAirlinesCount < MPC_THRESHOLD) {
-            airlines[_address].isRegistered = true;
+        if (registeredAirlinesCount < MPC_THRESHOLD) {
+
+            airlines[_address] = Airline({
+                name:_name,
+                wallet:_address,
+                isRegistered:true,
+                isFunded:false
+            });
+
+            registeredAirlinesCount = registeredAirlinesCount.add(1);
+            emit AirlineRegistered(_address, true);
 
             // Add artificial voting result
             votes[_address] = Vote({
@@ -325,14 +463,19 @@ contract FlightSuretyData {
                 votes:1,
                 success:true,
                 mpcRequired:false,
-                memberCount:fundedAirlinesCount
+                memberCount:registeredAirlinesCount,
+                threshold:1
             });
 
-            emit AirlineRegistered(_address, true);
+            votes[_address].hasVoted[msg.sender] = true;
+
+            emit VoteCounted(msg.sender, _address, true);
+            emit VotingSuccessful(_address, 1, 1);
         }
         else {
             // Add Airline to the registration Queue.
             registrationQueue = registrationQueue.add(1);
+            emit AirlineInRegistrationQueue(_address);
 
             // Vote
             votes[_address] = Vote({
@@ -340,10 +483,13 @@ contract FlightSuretyData {
                 votes:1,
                 success:false,
                 mpcRequired:true,
-                memberCount:fundedAirlinesCount
+                memberCount:registeredAirlinesCount,
+                threshold:registeredAirlinesCount.div(2)
             });
 
-            emit AirlineInRegistrationQueue(_address);
+            // The inviting Airline automatically votes for the invitee
+            votes[_address].hasVoted[_invitedBy] = true;
+            emit VoteCounted(msg.sender, _address, true);
         }
     }
 
