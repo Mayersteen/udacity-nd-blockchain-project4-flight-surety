@@ -34,10 +34,11 @@ contract FlightSuretyApp {
         uint8 statusCode;
         uint256 updatedTimestamp;
         address airline;
+        string flight;
     }
+
     mapping(bytes32 => Flight) private flights;
 
- 
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
     /********************************************************************************************/
@@ -67,7 +68,7 @@ contract FlightSuretyApp {
     }
 
     /**
-    * @dev Modifier that requires the "Airline" to be funded.
+    * @dev Modifier that requires the "Airline" to be fund ed.
     */
     modifier requireAirlineIsFunded(address _address) {
         require(flightSuretyData.isAirlineFunded(_address), "Airline must be funded.");
@@ -116,10 +117,24 @@ contract FlightSuretyApp {
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
 
-  
+    /**
+     * @dev Returns the flight status: true if the airline caused a delay, false otherwise
+     */
+    function getFlightStatus(
+        address airline,
+        string flight,
+        uint256 timestamp
+    )
+        view
+        external
+        returns (bool)
+    {
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        return flightSuretyData.getFlightStatus(flightKey);
+    }
+
    /**
     * @dev Add an airline to the registration queue
-    *
     */   
     function registerAirline(
         string _name,
@@ -139,30 +154,69 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */  
-    function registerFlight()
+    function registerFlight(
+        address _airline,
+        string _flight,
+        uint256 _timestamp
+    )
         external
-        pure
     {
+        bytes32 key = getFlightKey(_airline, _flight, _timestamp);
 
+        flights[key] = Flight({
+            isRegistered:true,
+            statusCode: 0,
+            updatedTimestamp: _timestamp,
+            airline: _airline,
+            flight: _flight
+        });
     }
-    
+
    /**
-    * @dev Called after oracle has updated flight status
-    *
+    * @dev Called after oracle has updated flight status. This is intended to be
+    * triggered when the Oracle comes back with a result and it has to decide where
+    * things go from here. If status code is not "20" then it needs to evaluate the
+    * next steps. In most cases we only want to react to "20" and determine how much
+    * the passengers who booked an insurance will get paid.
     */  
     function processFlightStatus(
         address airline,
-        string memory flight,
+        string flight,
         uint256 timestamp,
         uint8 statusCode
     )
-        internal
-        pure
+        public
     {
+        // Calculate flight key
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+
+        // Set flight status statusCode
+        //flights[flightKey].statusCode = statusCode;
+
+        // Set flight status if statusCode is 20
+        if(statusCode == 20) {
+            flightSuretyData.setFlightStatus(flightKey, true);
+        }
     }
 
+    /**
+     * @dev Process insurance for a flight and credit the insuree
+     */
+    function processFlightInsurance(
+        address airline,
+        string flight,
+        uint256 timestamp
+    )
+        public
+    {
+        flightSuretyData.creditInsuree(airline, flight, timestamp);
+    }
 
-    // Generate a request for oracles to fetch flight information
+    /**
+     * @dev Generate a request for oracles to fetch flight information. This is triggered
+     * from the UI (button click on the client Dapp) - this will then generate the
+     * Event that will be generated for the Oracles to react to.
+     */
     function fetchFlightStatus(
         address airline,
         string flight,
@@ -180,8 +234,58 @@ contract FlightSuretyApp {
         });
 
         emit OracleRequest(index, airline, flight, timestamp);
-    } 
+    }
 
+    /**
+     * @dev Customers buys an insurance for a flight.
+     */
+    function buyInsurance(
+        address airline,
+        string flight,
+        uint256 timestamp
+    )
+        external
+        payable
+    {
+        // The insurance price is capped by MAX_INSURANCE_PRICE, which is defined
+        // in the flightSuretyData contract.
+        require(msg.value <= flightSuretyData.getInsuranceCap(), "App: Insurance amount must be <= MAX_INSURANCE_PRICE");
+
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+
+        // Call buyInsurance in the flightSuretyData contract and transfer the funds.
+        flightSuretyData.buyInsurance.value(msg.value)(airline, flight, timestamp, key, msg.sender);
+    }
+
+    /**
+     * @dev An insuree can request the payout of their accrued credits.
+     */
+    function getPayout() external {
+        flightSuretyData.pay(msg.sender);
+    }
+
+    /**
+     * @dev An insuree can request their accrued credits
+     */
+    function getInsureeBalance() public view returns (uint256) {
+        return flightSuretyData.checkBalance(msg.sender);
+    }
+
+    /**
+     * @dev Checks insurance status for a given flight
+     */
+    function checkInsuranceStatus(
+        address airline,
+        string flight,
+        uint256 timestamp
+    )
+        public
+        view
+        returns (bool)
+    {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        return flightSuretyData.getInsuranceStatus(key);
+    }
 
 // region ORACLE MANAGEMENT
 
@@ -193,7 +297,6 @@ contract FlightSuretyApp {
 
     // Number of oracles that must respond for valid status
     uint256 private constant MIN_RESPONSES = 3;
-
 
     struct Oracle {
         bool isRegistered;
@@ -253,9 +356,6 @@ contract FlightSuretyApp {
         return oracles[msg.sender].indexes;
     }
 
-
-
-
     // Called by oracle when a response is available to an outstanding request
     // For the response to be accepted, there must be a pending request that is open
     // and matches one of the three Indexes randomly assigned to the oracle at the
@@ -272,7 +372,7 @@ contract FlightSuretyApp {
         require((oracles[msg.sender].indexes[0] == index) || (oracles[msg.sender].indexes[1] == index) || (oracles[msg.sender].indexes[2] == index), "Index does not match oracle request");
 
 
-        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp)); 
+        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp));
         require(oracleResponses[key].isOpen, "Flight or timestamp do not match oracle request");
 
         oracleResponses[key].responses[statusCode].push(msg.sender);

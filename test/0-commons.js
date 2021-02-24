@@ -34,7 +34,7 @@ contract('Flight Surety Tests:Commons', async (accounts) => {
         let errorCatched = false;
         try
         {
-            await config.flightSuretyData.fundAirline(
+            await config.flightSuretyData.fund(
                 config.firstAirline,
                 {
                     from:config.owner,

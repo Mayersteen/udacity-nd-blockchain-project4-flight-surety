@@ -88,7 +88,7 @@ contract('Flight Surety Tests:Voting and Multi-Party Consensus', async (accounts
         let errorCatchedFundingInvitingAirline = false;
         try
         {
-            await config.flightSuretyData.fundAirline(
+            await config.flightSuretyData.fund(
                 config.firstAirline,
                 {
                     from:config.owner,
@@ -106,9 +106,7 @@ contract('Flight Surety Tests:Voting and Multi-Party Consensus', async (accounts
             "Airline must be funded to participate in the voting process."
         );
 
-        /* New Airlines are registered to simulate a voting situation.
-         * airlines[7] will vote for the registration of airlines[8]
-         */
+        // New Airlines are registered to simulate a voting situation.
         let errorCatchedRegistration = false;
         try
         {
@@ -191,7 +189,6 @@ contract('Flight Surety Tests:Voting and Multi-Party Consensus', async (accounts
 
     });
 
-
     it(`(multi-party consensus) A funded airline can vote and MPC works`, async function() {
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(
@@ -244,7 +241,7 @@ contract('Flight Surety Tests:Voting and Multi-Party Consensus', async (accounts
         try
         {
             for(j=7; j<11; j++) {
-                await config.flightSuretyData.fundAirline(
+                await config.flightSuretyData.fund(
                     accounts[j],
                     {
                         from:accounts[j],
@@ -354,5 +351,6 @@ contract('Flight Surety Tests:Voting and Multi-Party Consensus', async (accounts
         assert.equal(votingStatus[3], false, "Vote success must be false")
 
     });
+
 
 });

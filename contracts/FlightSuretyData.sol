@@ -37,9 +37,6 @@ contract FlightSuretyData {
     // Registration Queue
     uint256 private registrationQueue;
 
-    // Contract funding to stay self-sustaining in case of many delaiyed flights
-    mapping(address => uint256) private funding;
-
     // Struct that represents an airline.
     struct Airline{
         string name;
@@ -59,6 +56,32 @@ contract FlightSuretyData {
         uint256 threshold;
     }
 
+    // Struct that represents an Insurance
+    struct Insurance{
+        uint256 value;
+        address customer;
+        string flight;
+        bytes32 flightKey;
+        address airline;
+        uint256 timestamp;
+        //bool processed;
+    }
+
+    // Mapping to map Insurance to passengers
+    //mapping(address => Insurance) private insurances;
+    // TODO: Changed the mapping to a multi-mapping - need to ensure that all use is adapted accordingly.
+    mapping(bytes32 => Insurance) private insurances;
+
+    // Maps flight key to status code and states true if the flight is late (code 20) due to an airline error,
+    // false otherwise. If this is true, an insurance payout is granted, otherwise not.
+    mapping(bytes32 => bool) private flightLateAirline;
+
+    // Contract funding to stay self-sustaining in case of many delayed flights
+    mapping(address => uint256) private funding;
+
+    // Credits per insured passenger
+    mapping(address => uint256) private credits;
+
     // Mapping to store votingResults for addresses
     mapping(address => Vote) private votes;
 
@@ -74,7 +97,7 @@ contract FlightSuretyData {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
-    // Access Control
+    // Access Control Events
     event CallerAuthorized(address caller);
 
     // Airline Events
@@ -83,11 +106,20 @@ contract FlightSuretyData {
     event AirlineFunded(address airlineAddress, bool isFunded, uint256 funding);
     event AirlineInRegistrationQueue(address airlineAddress);
     event AirlineRemovedFromRegistrationQueue(address airlineAddress);
+    event DebugAirlineFunds(address airline, uint256 funding);
+    event DebugFundingReduced(address airline, uint256 amount, uint256 funds);
 
-
-// Voting Events
+    // Voting Events
     event VoteCounted(address votedBy, address votedFor, bool voting);
     event VotingSuccessful(address airlineAddress, uint256 threshold, uint256 numVotes);
+
+    // Flight Events
+    event FlightLateAirline(bytes32 flightKey);
+
+    // Insurance Events
+    event InsurancePurchased(address customer, bytes32 flightKey, uint256 amount);
+    event InsureeCredited(address customer, bytes32 flightKey, uint256 amount);
+    event InsuranceDeleted(bytes32 flightKey);
 
     /********************************************************************************************/
     /*                                         CONSTRUCTOR                                      */
@@ -209,6 +241,15 @@ contract FlightSuretyData {
     /********************************************************************************************/
 
     /**
+    * @dev Returns the cap of a single insurance
+    *
+    * @return Maximum Insurance Price as uint256
+    */
+    function getInsuranceCap() external pure returns (uint256) {
+        return MAX_INSURANCE_PRICE;
+    }
+
+    /**
     * @dev Get operating status of contract
     *
     * @return A bool that is the current operating status
@@ -216,7 +257,7 @@ contract FlightSuretyData {
     function isOperational() 
         public
         view
-        returns(bool)
+        returns (bool)
     {
         return operational;
     }
@@ -369,6 +410,9 @@ contract FlightSuretyData {
         return allAirlinesCount;
     }
 
+    /**
+     * @dev Returns the number of registered airlines
+     */
     function getRegisteredAirlinesCount()
         external
         view
@@ -377,10 +421,44 @@ contract FlightSuretyData {
         return registeredAirlinesCount;
     }
 
+    /**
+     * @dev Returns the length of the registration queue.
+     */
+    function getRegistrationQueueLength()
+    external
+    view
+    returns(uint256)
+    {
+        return registrationQueue;
+    }
+
+    /**
+    * @dev Get status for a flight - true: if the airline caused the delay, false: otherwise
+    */
+    function getFlightStatus(bytes32 flightKey) external view returns(bool) {
+        return flightLateAirline[flightKey];
+    }
+
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
 
+    /**
+    * @dev Sets status for a flight - true: if the airline caused the delay, false: otherwise
+    */
+    function setFlightStatus(
+        bytes32 flightKey,
+        bool status
+    )
+        external
+    {
+        flightLateAirline[flightKey] = status;
+        emit FlightLateAirline(flightKey);
+    }
+
+    /**
+     * @dev Allows airlines to vote for new members.
+     */
     function voteForAirlineRegistration(
         address _address,
         bool _vote
@@ -494,9 +572,10 @@ contract FlightSuretyData {
     }
 
     /**
-     * @dev funds an airline
+     * @dev Initial funding for the insurance. Unless there are too many delayed flights
+     *      resulting in insurance payouts, the contract should be self-sustaining
      */
-    function fundAirline(
+    function fund(
         address _address
     )
         external
@@ -520,57 +599,106 @@ contract FlightSuretyData {
     }
 
    /**
-    * @dev Returns the length of the registration queue.
-    */
-    function getRegistrationQueueLength()
-        external
-        view
-        returns(uint256)
-    {
-        return registrationQueue;
-    }
-
-   /**
     * @dev Buy insurance for a flight
     *
     */   
-    function buy()
+    function buyInsurance(
+        address airline,
+        string flight,
+        uint256 timestamp,
+        bytes32 flightKey,
+        address sender
+    )
         external
         payable
     {
+        // Ensure that the max price is not exceeded
+        require(msg.value <= MAX_INSURANCE_PRICE, "Data: Insurance amount must be <= MAX_INSURANCE_PRICE");
 
+        // Ensure that the selected flight exists
+        // TODO: Not required as this exercise uses pre-defined flight numbers. In a real scenario it would be mandatory.
+
+        insurances[flightKey].customer = sender;
+        insurances[flightKey].flightKey = flightKey;
+        insurances[flightKey].value = msg.value;
+        insurances[flightKey].airline = airline;
+        insurances[flightKey].flight = flight;
+        insurances[flightKey].timestamp = timestamp;
+
+        emit InsurancePurchased(sender, flightKey, msg.value);
     }
 
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees()
+    function creditInsuree(
+        address _airline,
+        string _flight,
+        uint256 _timestamp
+    )
         external
-        pure
     {
+        bytes32 flightKey = getFlightKey(_airline, _flight, _timestamp);
+
+        require(flightLateAirline[flightKey], "Delay must be caused by the airline.");
+
+        // Calculate amount hat needs to be credited to the insuree
+        uint256 amount = insurances[flightKey].value;
+        require(amount > 0, "Insurance amount must be > 0");
+        amount = amount.mul(15).div(10);
+
+        emit InsureeCredited(insurances[flightKey].customer, flightKey, amount);
+        emit DebugAirlineFunds(_airline, funding[_airline]);
+
+        // remove amount from airlines funding
+        address airline = insurances[flightKey].airline;
+        require(funding[airline] >= amount, "Airline must have sufficient funds to credit insuree");
+        funding[airline] = funding[airline].sub(amount);
+
+        emit DebugFundingReduced(airline, amount, funding[airline]);
+
+        // credit the calculated amount
+        uint256 currentCredits = credits[insurances[flightKey].customer];
+        credits[insurances[flightKey].customer] = currentCredits.add(amount);
+        emit InsureeCredited(insurances[flightKey].customer, flightKey, amount);
+
+        // delete the insurance entry
+        delete insurances[flightKey];
+        delete flightLateAirline[flightKey];
+        emit InsuranceDeleted(flightKey);
     }
-    
+
+    /**
+     *  @dev Returns the credits balance of msg.sender
+    */
+    function checkBalance(address sender) external view returns (uint256){
+        return credits[sender];
+    }
+
+    function getInsuranceStatus(bytes32 flightKey) external view returns(bool) {
+        if (insurances[flightKey].customer != address(0)) {
+            return true;
+        }
+        return false;
+    }
 
     /**
      *  @dev Transfers eligible payout funds to insuree
-     *
     */
-    function pay()
+    function pay(
+        address sender
+    )
         external
-        pure
     {
-    }
+        require(credits[sender] > 0, "Insuree must have more than 0 credits in order to receive a payout");
 
-   /**
-    * @dev Initial funding for the insurance. Unless there are too many delayed flights
-    *      resulting in insurance payouts, the contract should be self-sustaining
-    *
-    */   
-    function fund()
-        public
-        payable
-    {
+        // In a real scenario we would be required to also ensure that each airline has sufficient funding to serve
+        // all potential payouts. This is not part of the exercise.
 
+        // Transfer accrued credits to the owner.
+        uint256 amount = credits[sender];
+        credits[sender] = 0;
+        sender.transfer(amount);
     }
 
     function getFlightKey(
@@ -584,17 +712,5 @@ contract FlightSuretyData {
     {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
-
-    /**
-    * @dev Fallback function for funding smart contract.
-    *
-    */
-    function() 
-        external
-        payable
-    {
-        fund();
-    }
-
 
 }

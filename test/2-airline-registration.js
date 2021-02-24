@@ -19,7 +19,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
     /* Operations and Settings                                                              */
     /****************************************************************************************/
 
-    it(`(airline registration) registerAirline cannot be called by an unregistered airline`, async function() {
+    it(`(airline registration) Unregistered airline cannot registerAirline`, async function() {
 
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(
@@ -55,7 +55,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
         assert.equal(qLen, 0, "registrationQueue must be [0].");
     });
 
-    it(`(airline registration) registerAirline can be called by a funded airline`, async function() {
+    it(`(airline registration) Unfunded airline cannot registerAirline`, async function() {
 
         // Ensure that the calling contract address is authorized.
         let callerAuthorizedStatus = await config.flightSuretyData.isCallerAuthorized.call(
@@ -122,7 +122,7 @@ contract('Flight Surety Tests:Airline Registration', async (accounts) => {
         let errorCatchedFunding = false;
         try
         {
-            await config.flightSuretyData.fundAirline(
+            await config.flightSuretyData.fund(
                 config.firstAirline,
                 {
                     from:config.owner,
