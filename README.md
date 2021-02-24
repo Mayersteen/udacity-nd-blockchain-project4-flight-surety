@@ -24,12 +24,12 @@ To run truffle tests:
 
 To run individual truffle tests:
 
-`truffle test ./test/0-commons.js`
-`truffle test ./test/1-operating-status.js`
-`truffle test ./test/2-airline-registration.js`
-`truffle test ./test/3-voting.js`
-`truffle test ./test/4-flight-status-codes.js`
-`truffle test ./test/5-flight-insurance.js`
+`truffle test ./test/0-commons.js`\
+`truffle test ./test/1-operating-status.js`\
+`truffle test ./test/2-airline-registration.js`\
+`truffle test ./test/3-voting.js`\
+`truffle test ./test/4-flight-status-codes.js`\
+`truffle test ./test/5-flight-insurance.js`\
 `truffle test ./test/oracles.js`
 
 To use the dapp:
