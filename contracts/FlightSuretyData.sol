@@ -68,8 +68,6 @@ contract FlightSuretyData {
     }
 
     // Mapping to map Insurance to passengers
-    //mapping(address => Insurance) private insurances;
-    // TODO: Changed the mapping to a multi-mapping - need to ensure that all use is adapted accordingly.
     mapping(bytes32 => Insurance) private insurances;
 
     // Maps flight key to status code and states true if the flight is late (code 20) due to an airline error,
@@ -614,9 +612,6 @@ contract FlightSuretyData {
     {
         // Ensure that the max price is not exceeded
         require(msg.value <= MAX_INSURANCE_PRICE, "Data: Insurance amount must be <= MAX_INSURANCE_PRICE");
-
-        // Ensure that the selected flight exists
-        // TODO: Not required as this exercise uses pre-defined flight numbers. In a real scenario it would be mandatory.
 
         insurances[flightKey].customer = sender;
         insurances[flightKey].flightKey = flightKey;

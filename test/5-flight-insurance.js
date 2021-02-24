@@ -53,8 +53,6 @@ contract('Flight Surety Tests:Flight Insurance', async (accounts) => {
 
     });
 
-    //TODO: Passengers can buy flight insurance
-
     it(`(flight insurance) Insurance can be purchased if amount is <= 1 ether`, async function() {
 
         // Ensure that the calling contract address is authorized.
