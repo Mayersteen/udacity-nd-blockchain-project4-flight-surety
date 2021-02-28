@@ -1,7 +1,31 @@
 # Test Setup
-
 All truffle-test(s) where run with the following ganache-cli configuration:
 `ganache-cli -m "candy maple cake sugar pudding cream honey rich smooth crumble s weet treat" -d -g 1 -l 999999999999999 -a 50 -e 1000000`
+
+# Testing the Dapp
+If the smart contract is running correctly, you should see the following image stating that the Contract is _Operational_.
+![alt text](./img/step1.png "Step 1: Initial Contract State")
+\
+*For the next steps, please choose one of the defined flights and do not change it during the procedure.*
+\
+Next we want to ensure that there is no insurance present for a given flight. Please select one  of the flights in the
+dropdown and click on the button *Check Insurance Status*. You should see an update in the Dapp, that indicates _false_.
+![alt text](./img/step2.png "Step 2: No Insurance is purchased on initialization")
+\
+If you want to test the 1 Ether limit, put 2 into the Flight Insurance text-input and click on *Buy Insurance*. This
+method does not update the UI in the Dapp. Please click on *Check Insurance Status* next to validate, that the status
+is still _false_.
+![alt text](./img/step3.png "Step 3: Insurance price limit is 1 Ether, trying to purchase one for 2 Ether")
+![alt text](./img/step4.png "Step 4: Insurance status is still false")
+\
+Next please put 1 into the text-input and click on *Buy Insurance*. Next click on *Check Insurance Status* again. Now
+the Insurance status should be _true_.
+![alt text](./img/step5.png "Step 5: Insurance was purchased")
+\
+To trigger Oracle Events, please submit the flight to Oracles via *Submit to Oracles*. The Smart Contract will execute
+the necessary actions in the background. As crediting of insurances is tested in Truffle tests, the Dapp has no further
+capabilites.
+![alt text](./img/step6.png "Step 6: Submitted flight to Oracles")
 
 # FlightSurety
 

@@ -25,7 +25,21 @@
         <div id="display-wrapper" class="top-20"></div>
 
         <div class="row top-20">
-            <label class="form">Flight</label> <input type="text" id="flight-number"> <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
+            <label class="form">Flight</label>
+            <!-- <input type="text" id="flight-number"> -->
+            <select class="selectpicker browser-default custom-select" id="flight-number">
+                <option selected="LH123">LH123</option>
+                <option value="AH400">AH400</option>
+                <option value="XJ983">XJ983</option>
+            </select>
+            <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
+        </div>
+
+        <div class="row top-20">
+            <label class="form">Flight Insurance</label>
+            <input type="text" id="insurance-price">
+            <btn class="btn btn-primary" id="submit-buy-insurance">Buy Insurance</btn>
+            <btn class="btn btn-primary" id="check-insurance">Check Insurance Status</btn>
         </div>
 
     </main>

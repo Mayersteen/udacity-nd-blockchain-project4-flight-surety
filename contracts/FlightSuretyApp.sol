@@ -255,6 +255,7 @@ contract FlightSuretyApp {
 
         // Call buyInsurance in the flightSuretyData contract and transfer the funds.
         flightSuretyData.buyInsurance.value(msg.value)(airline, flight, timestamp, key, msg.sender);
+
     }
 
     /**

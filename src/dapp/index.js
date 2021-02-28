@@ -13,9 +13,22 @@ import './flightsurety.css';
         // Read transaction
         contract.isOperational((error, result) => {
             console.log(error,result);
-            display('Operational Status', 'Check if contract is operational', [ { label: 'Operational Status', error: error, value: result} ]);
+            display('Operational Status',
+                'Check if contract is operational',
+                [ { label: 'Operational Status', error: error, value: result}]
+            );
         });
-    
+
+        // Read insurance status
+        DOM.elid('check-insurance').addEventListener('click', () => {
+            let flight = DOM.elid('flight-number').value;
+            contract.checkInsuranceStatus(flight, (error,result) => {
+                console.log(error, result);
+                display('Insurance Status', 'Check if insurance was purchased',
+                    [ { label: 'Insurance Status', error: error, value: JSON.stringify(result)}]
+                );
+            });
+        })
 
         // User-submitted transaction
         DOM.elid('submit-oracle').addEventListener('click', () => {
@@ -25,7 +38,15 @@ import './flightsurety.css';
                 display('Oracles', 'Trigger oracles', [ { label: 'Fetch Flight Status', error: error, value: result.flight + ' ' + result.timestamp} ]);
             });
         })
-    
+
+        // User-submitted transaction
+        DOM.elid('submit-buy-insurance').addEventListener('click', () => {
+            let flight = DOM.elid('flight-number').value;
+            let price = DOM.elid('insurance-price').value;
+            // Write transaction
+            contract.buyInsurance(flight, price, (error, result) => {});
+        })
+
     });
     
 

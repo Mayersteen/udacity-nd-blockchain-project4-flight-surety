@@ -2,6 +2,8 @@ import FlightSuretyApp from '../../build/contracts/FlightSuretyApp.json';
 import Config from './config.json';
 import Web3 from 'web3';
 
+var BigNumber = require('bignumber.js');
+
 export default class Contract {
     constructor(network, callback) {
 
@@ -12,6 +14,13 @@ export default class Contract {
         this.owner = null;
         this.airlines = [];
         this.passengers = [];
+
+        this.schedule = {
+            "LH123": 1614531000,
+            "AH400": 1614532000,
+            "XJ983": 1614533000
+        }
+
     }
 
     initialize(callback) {
@@ -33,6 +42,7 @@ export default class Contract {
         });
     }
 
+    // Glue to check operating status
     isOperational(callback) {
        let self = this;
        self.flightSuretyApp.methods
@@ -40,12 +50,27 @@ export default class Contract {
             .call({ from: self.owner}, callback);
     }
 
+    // Glue to check insurance status
+    checkInsuranceStatus(flight, callback) {
+        let self = this;
+        let payload = {
+            airline: self.airlines[0],
+            flight: flight,
+            timestamp: self.schedule[flight],
+        }
+
+        self.flightSuretyApp.methods
+            .checkInsuranceStatus(payload.airline, payload.flight, payload.timestamp)
+            .call({ from: self.owner}, callback);
+    }
+
+    // Glue to fetch flight Status
     fetchFlightStatus(flight, callback) {
         let self = this;
         let payload = {
             airline: self.airlines[0],
             flight: flight,
-            timestamp: Math.floor(Date.now() / 1000)
+            timestamp: self.schedule[flight],
         } 
         self.flightSuretyApp.methods
             .fetchFlightStatus(payload.airline, payload.flight, payload.timestamp)
@@ -53,4 +78,22 @@ export default class Contract {
                 callback(error, payload);
             });
     }
+
+    // Glue to buy an insurance
+    buyInsurance(flight, price, callback) {
+        let self = this;
+        let payload = {
+            airline: self.airlines[0],
+            flight: flight,
+            timestamp: self.schedule[flight],
+            price: price * (new BigNumber(10)).pow(18)
+        }
+
+        self.flightSuretyApp.methods
+            .buyInsurance(payload.airline, payload.flight, payload.timestamp)
+            .send({ from: self.owner, value: payload.price, gas: 100000000000, gasPrice: 1}, (error, result) => {
+                callback(error, payload);
+            });
+    }
+
 }
