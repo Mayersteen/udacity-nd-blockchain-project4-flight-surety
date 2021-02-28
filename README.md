@@ -26,6 +26,55 @@ To trigger Oracle Events, please submit the flight to Oracles via *Submit to Ora
 the necessary actions in the background. As crediting of insurances is tested in Truffle tests, the Dapp has no further
 capabilites.
 ![alt text](./img/step6.png "Step 6: Submitted flight to Oracles")
+\
+Once the button was pressed, the Server console should show output comparable to the following:
+```
+{
+  logIndex: 0,
+  transactionIndex: 0,
+  transactionHash: '0xc7922c1ee39db18cad05ed93a2ae19a4dcc61cdf2c3b3754e92c3efead6d6c01',
+  blockHash: '0x590eeeaef443985de4fdd2e675d22ee5d557ea34196e67c5f005d1648e6e4a0b',
+  blockNumber: 199,
+  address: '0x075476F25Ef65d01A39b35edAc58610Bf573BA4d',
+  type: 'mined',
+  id: 'log_b0786a03',
+  returnValues: Result {
+    '0': '7',
+    '1': '0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7',
+    '2': 'XJ983',
+    '3': '1614533000',
+    index: '7',
+    airline: '0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7',
+    flight: 'XJ983',
+    timestamp: '1614533000'
+  },
+  event: 'OracleRequest',
+  signature: '0x3ed01f2c3fc24c6b329d931e35b03e390d23497d22b3f90e15b600343e93df11',
+  raw: {
+    data: '0x0000000000000000000000000000000000000000000000000000000000000007000000000000000000000000036ec7e0fbed44d99d48f1c1587f7a558a64d9c70000000000000000000000000000000
+00000000000000000000000000000008000000000000000000000000000000000000000000000000000000000603bd1880000000000000000000000000000000000000000000000000000000000000005584a393833'
+,
+    topics: [
+      '0x3ed01f2c3fc24c6b329d931e35b03e390d23497d22b3f90e15b600343e93df11'
+    ]
+  }
+}
+Oracle [ 23 ] has an active subscription for index { 7 } and returns StatusCode ( 10 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,10)
+Oracle [ 27 ] has an active subscription for index { 7 } and returns StatusCode ( 30 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,30)
+Oracle [ 28 ] has an active subscription for index { 7 } and returns StatusCode ( 50 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,50)
+Oracle [ 29 ] has an active subscription for index { 7 } and returns StatusCode ( 10 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,10)
+Oracle [ 33 ] has an active subscription for index { 7 } and returns StatusCode ( 0 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,0)
+Oracle [ 36 ] has an active subscription for index { 7 } and returns StatusCode ( 20 ):
+  .. calling submitOracleResponse(7,0x036EC7e0fbeD44D99d48f1C1587F7A558A64d9c7,XJ983,1614533000,20)
+```
+For simplicity, if one of the Oracles returns the Status Code 20, then the flight is considered late and the insuree
+would gain credits for the purchased insurance in the smart contract. The credits can then be claimed. This is not 
+implemented in the Dapp, but the functionality is tested in the Truffle tests.
 
 # FlightSurety
 
