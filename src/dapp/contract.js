@@ -96,4 +96,11 @@ export default class Contract {
             });
     }
 
+    getPayout(callback) {
+        let self = this;
+        self.flightSuretyApp.methods
+            .getPayout()
+            .call({ from: self.owner }, callback);
+    }
+
 }

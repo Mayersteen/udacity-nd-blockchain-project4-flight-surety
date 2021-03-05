@@ -685,7 +685,7 @@ contract FlightSuretyData {
     )
         external
     {
-        require(credits[sender] > 0, "Insuree must have more than 0 credits in order to receive a payout");
+        //require(credits[sender] > 0, "Insuree must have more than 0 credits in order to receive a payout");
 
         // In a real scenario we would be required to also ensure that each airline has sufficient funding to serve
         // all potential payouts. This is not part of the exercise.

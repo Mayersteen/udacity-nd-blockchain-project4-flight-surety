@@ -246,6 +246,7 @@ contract FlightSuretyApp {
     )
         external
         payable
+        returns (bool)
     {
         // The insurance price is capped by MAX_INSURANCE_PRICE, which is defined
         // in the flightSuretyData contract.
@@ -256,13 +257,15 @@ contract FlightSuretyApp {
         // Call buyInsurance in the flightSuretyData contract and transfer the funds.
         flightSuretyData.buyInsurance.value(msg.value)(airline, flight, timestamp, key, msg.sender);
 
+        return true;
     }
 
     /**
      * @dev An insuree can request the payout of their accrued credits.
      */
-    function getPayout() external {
+    function getPayout() external returns(bool){
         flightSuretyData.pay(msg.sender);
+        return true;
     }
 
     /**

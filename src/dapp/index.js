@@ -19,16 +19,6 @@ import './flightsurety.css';
             );
         });
 
-        // Read insurance status
-        DOM.elid('check-insurance').addEventListener('click', () => {
-            let flight = DOM.elid('flight-number').value;
-            contract.checkInsuranceStatus(flight, (error,result) => {
-                console.log(error, result);
-                display('Insurance Status', 'Check if insurance was purchased',
-                    [ { label: 'Insurance Status', error: error, value: JSON.stringify(result)}]
-                );
-            });
-        })
 
         // User-submitted transaction
         DOM.elid('submit-oracle').addEventListener('click', () => {
@@ -43,9 +33,30 @@ import './flightsurety.css';
         DOM.elid('submit-buy-insurance').addEventListener('click', () => {
             let flight = DOM.elid('flight-number').value;
             let price = DOM.elid('insurance-price').value;
-            // Write transaction
-            contract.buyInsurance(flight, price, (error, result) => {});
+
+            contract.buyInsurance(flight, price, (error, result) => {
+                console.log(error, result);
+            });
+
+            contract.checkInsuranceStatus(flight, (error,result) => {
+                console.log(error, result);
+                display('Insurance Status', 'Check if insurance was purchased',
+                    [ { label: 'Insurance Status', error: error, value: JSON.stringify(result)}]
+                );
+            });
         })
+
+        // Check accrued insurance credits
+        DOM.elid('claim-credits').addEventListener('click', () => {
+            contract.getPayout((error, result) => {
+                console.log(error, result);
+                display('Claim Insurance Credits', 'Requesting Payout',
+                    [ { label: 'Claiming Credits', error: error, value: JSON.stringify(result)} ]
+                );
+            });
+        })
+
+        // Claim credits
 
     });
     
